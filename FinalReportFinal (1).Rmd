@@ -1,0 +1,972 @@
+---
+title: "Final Report"
+author: "Jonathan Markey 1805361"
+
+output:
+  pdf_document:
+    latex_engine: xelatex
+editor_options:
+  markdown:
+    wrap: sentence
+---
+
+## Executive Summary
+
+Spotify is the world's largest music streaming provider with over 365 million monthly active users and tens of thousands of songs that cover several genres of music.
+One of the most important priorities for the company is being able to continually provide the best service and features for its customers, allowing Spotify to retain its customers' loyalty and ultimately continue to remain the best music streaming service available.
+
+To achieve this, the founders of Spotify have requested a predictive model to be created which could predict the genre that a song belongs to based on the song's information.
+Creating this model would allow Spotify to better recommend/advertise its songs to customers and more effectively update compilation playlists.
+The founders are also specifically interested in how the release year, 'speechiness', danceability, and tempo of a song could predict the genre of a song.
+In addition to this, the founders are also interested in an analysis of the popularity of songs between genres, the speechiness of each genre, and how popularity has changed over time.
+
+After completing a full analysis it was found that:
+
+-   The most important factors when predicting a song's genre were the year that the song was released, the danceability, the tempo, the energy and the speechiness of a song, in that order.
+-   The popularity of songs does differ between genres with the pop and latin genres having, on average, the most popular song, and the edm having, on average, the least popular songs.
+-   There is a speechiness difference between genres with the rap genre having by far the most speechines out of all the genres. The genres with the least level of speechiness are the rock, pop and edm genres.
+-   The popularity of genres had changed over time. Over the long term, there had been a general downward trend in the popularity of songs. However, from 2010 to 2020 there was a noticeable upward trend in the popularity of nearly all music genres.
+
+The final results showed that the random forest was able to correctly classify 55.53% of its positive predictions as true positives and that it would be able to correctly classify 91.11% of its negative predictions as true negatives.
+The model was also able to generate an AUC score of 85.02% which indicated that it could differentiate between the classes with 85.02% certainty.
+The linear discriminant model and k-nearest neighbour models scored slightly lower, with sensitivities and specificities of 46.47% and 89.29% for the LDA and 49.87% and 89.97% for the KNN model.
+The AUC scores for these models are 80.87% and 81.48% respectively.
+Analysing the confusion matrix, and the sensitivity and specificity scores for the individual classes showed that there was a lot of variance between the classes.
+The models were all able to correctly predict the edm, rap and rock classes more often than the latin, pop and r&b classes.
+This indicated that there could be too little variance in these classes in the original data for the models to differentiate between the classes.
+Future work to address this could be to subject the data to additional feature engineering as this could allow for more variance to be uncovered which would allow the models to better differentiate the classes from each other.
+Based on these final results it is recommended that Spotify use the random forest model to predict the genre of a song over the LDA and KNN models.
+
+## Methods
+
+The software that was used to undertake this project was RStudio version 4.2.1.
+Several libraries and packages were used including tidyverse, lubridate, stringr, tidyr, skimr, recipes, inspectdf, dplyr, rsample, themis, ranger, vip, parsnip, dials, discrim, tune, pROC and kknn.
+
+There were several steps involved in this project which included data importing and cleaning, exploratory analysis, split and preprocessing data, model tuning and fitting, and lastly model evaluation.
+
+The first step of the project was to import the data into R and select the variables.
+The data used in this report was originally derived from the spotifyr package in R and consists of data on 32,833 songs.
+Included in the data set were 23 variables which cover all the information on each song.
+Out of these 23 variables, 15 variables were analysed and found to be potentially useful.
+The track release date information would later be split into the year, month, and day data, bringing the total number of variables to 1 observation variable and 16 predictors.
+The chosen variables were:
+
+-   Playlist_genre - The observation variable. This variable classifies each song into the 6 song genres.
+-   Energy - A value from 0 to 1 representing the perceptual measure of intensity and activity.
+-   Key - An integer value describing the overall pitch of the song increasing as pitch increases.
+-   Loudness - A value ranging from -60 to 0 measuring the loudness of a song. Songs with loudness of 1 are songs with undetected pitch.
+-   Mode - Binary value describing the scale the melodic content is derived from. A value of 0 is done in minor, a value of 1 is done in major.
+-   Acousticness - A value from 0 to 1 describing how acoustic the track is. Higher values mean more acoustic.
+-   Instrumentalness - A value from 0 to 1 describing how instrumental the song is. Higher values imply fewer vocals in the track.
+-   Liveness - Detects how "live" the music is, i.e. whether it is a studio recording or a live recording.
+-   Valence - A measure from 0 to 1 describing how positive the song is. A higher value means more positive.
+-   Duration_ms - The duration of the song in milliseconds.
+-   Track_popularity - A number from 0 to 100 indicating popularity. The higher the value, the more popular the song.
+-   Danceability - A value from 0 to 1 describing how danceable a song is. The higher the value, the more danceable the song.
+-   Speechiness - A value from 0 to 1 describing how 'speechy' the track is. Higher values indicate spoken-word tracks.
+-   Tempo - The tempo of the song in beats per minute.
+-   Track_album_release_date - date that the song was released on.
+
+The second step of the project was to skim and initially analyse the data to find any missing or incorrect data.
+This step involved ensuring variables had been correctly coded as factors if categorical, or numerical if quantitative.
+Variables such as the song release date were also split into their year, month, and day form in this step.
+Following this, the data was inspected for any missing or incorrect values.
+If values were found they were either dropped or transformed to be useable.
+To ensure that the R scripts ran promptly, the data was also downsampled in this step to 1000 data entries from each genre class, bringing the data down to 6000 total observations.
+Although the data was analysed for normality and collinearity at this stage, this would not need to be acted on as it would be addressed during the split and preprocessing stages.
+
+The next step was to conduct the exploratory data analysis.
+In this step the variables were visualised and analysed to determine if there were relationships present in the data and if the data was varied enough to be used in the predictive models.
+In this section, the additional founders' questions regarding the popularity and speechiness of each genre could be answered.
+
+Following the EDA, the next step was to split and preprocess the data.
+In this step, the data was split into a training and testing set with a 75% and 25% split respectively.
+The training data was used to train the predictive models and the testing data was used to test the predictive powers of the models.
+The purpose of creating the testing data was to ensure that the models can be run on new data.
+If the models were tested on the training data that was used to generate the models, there would be a bias towards this data and the models would have a stronger predictive power than it would have on the new data.
+With the split, the data was preprocessed to normalize the variables, remove any variables with zero variance, and remove any variables that were highly correlated with other variables.
+The final part of this process was to make a cross-validation data set from the training set.
+The purpose of the cross-validation set was to test and tune the classification models to produce the best result.
+
+The fifth step in the project was to tune and fit the three classification models.
+As per the instructions set by the founders, the three predictive approaches that were tested and compared were the random forest, linear discriminant analysis (LDA) and K-nearest neighbours models.
+
+Random forest is a machine-learning technique that can be used for classification or regression.
+Random forest works by initially constructing a multitude of decision trees that use different values to create an output.
+Those predictions are then averaged out as a final output.
+Due to the large number of variables in the data set, random forest classification can also be used to show which variables are most important in classifying the genre of a song (Keboola, 2020).
+There are three properties of the random forest model that can be tuned, the number of trees in the forest, the number of predictors that are randomly sampled, and the number of data points in a node that are required for the node to be split.
+As the founders requested that the forest is made of 100 trees, only the number of predictors and data points will be tuned at 5 levels.
+
+Linear discriminant analysis (LDA) is a classification model that is a linear model that can be used to make classifications.
+LDA uses dimensionality reduction to reduce the number of dimensions in a dataset while retaining as much information as possible.
+This means that it will reduce the number of variables in a dataset until it finds a linear combination of variables that provide the best separation between classes (Brownlee, 2020).
+LDA does not require tuning and only requires that the numerical variables are normalised to have a mean of 0 and standard deviation of 1.
+
+K-nearest neighbours is a classification machine learning algorithm that is used to estimate the likelihood that a data point will belong to a specific class of a variable.
+This algorithm functions under the idea that a data point is more likely to be like those that are close to it compared to those that are far away from it (Javapoint, 2021).
+Under this assumption, the algorithm is able to classify data by looking at the k data points that are closest to the new value, and then classifying the new value based on the most populated class that these data points belong to.
+The only property of the K-nearest neighbours model that can be tuned is the number of neighbours that will be compared.
+The founders requested that the number of neighbours is tuned to a range of 1 to 100 with 20 levels.
+
+Once these models were fitted the last step was to evaluate the models and determine which provided the best results.
+To determine which model best suited the founders' needs the AUC, the sensitivity and specificity of each model were calculated and compared.
+The area under the ROC curve (AUC) is a performance metric that is measured as a rate from 0 to 1.
+The ROC curve is a graph that shows the performance of a classification model at all classification thresholds.
+It represents the models true positive rate and false positive rate.
+An AUC of 1 indicates that the predictive model is able to perfectly distinguish between classes and make correct predictions.
+AUC values that get closer to 0.5 indicate that the predictive model cannot distinguish between classes and is more random.
+As AUC approaches 0 it's result is similar as to if it approaches 1 but inversed, meaning that it can perfectly misclassify results.
+Sensitivity and specificity are metrics used to measure the probability of a positive test being a true positive and a negative test being a true negative.
+A true positive means that if the model predicts a song to be a pop song then it will be a true positive if the actual genre of the song is pop.
+A true negative means that if the actual song is pop, then so long as the prediction is not pop it is a true negative.
+As the prediction was done for multiple genres the sensitivity and specificity were calculated for each genre.
+
+## Results
+
+Analysing the release data found that there were 1886 missing or incorrect values.
+As this only constituted approximately 6% of the data and as the data would be down-sampled to 6000 total observations (1000 of each genre) these were dropped from the sample.
+Analysing the loudness data showed that there were 6 values that could not be measured.
+These values were replaced with the median value.
+Once the data was tame and cleaned, the data was down-sampled to 1000 of each genre to reduce the run time of the R scripts.
+
+### Exploratory Data Analysis
+
+For the EDA many of the variables were analysed in a similar way.
+The variables were analysed by initially creating histograms and bar charts faceted by the playlist genre.
+This allowed for each variable's shape, location, spread, and outliers to be analysed.
+After this, the summary statistics were printed and the range, interquartile range, mean, and median were analysed for the variable.
+The summary statistics were for the variable overall and not stratified by genre.
+Below are the key takeaways from the EDA for each variable.
+Please refer to Figures 1 - 15 in Appendix A for full plots and summaries of each variable.
+
+Energy (Figure 1)
+
+-   Shape: Unimodal and left-skewed for edm, latin, pop and rock classes. Normal for r&b and rap.
+-   Location: Largest peaks are located in the 0.6 to 0.9 range for most classes. The mean and median are 0.695 and 0.717 respectively.
+-   Spread: All classes are spread between 0.25 to 1, except edm which is narrower from 0.375 to 1. The range is from 0.000175 to 1. Interquartile range (IQR) is from 0.574 to 0.84.
+-   Outliers: Present in rock, rap, pop and latin classes at lower values.
+
+Key (Figure 2)
+
+-   Shape: The key is categorical and ordinal.
+-   Location: The peaks of data are quite varied between classes.
+-   Spread: All classes have a large quantity of data in the 0-2 range and then very little data at 3. After 3 all classes' key varies.
+-   Outliers: None appear to be present.
+
+Loudness (Figure 3)
+
+-   Shape: All appear to be unimodal with a slight left-skew.
+-   Location: Largest peaks are located in the -7 to -5 range for all classes. The mean and median are located at -6.741 and -6.180 respectively.
+-   Spread: All classes are spread between -15 to -2. The range is from -35.960 to -0.155. IQR is from -8.191 to -4.662.
+-   Outliers: Some outliers are present in the rock class at the lower ranges.
+
+Mode (Figure 4)
+
+-   Shape: Mode is categorical and binary.
+-   Location: For all classes, the mode count is larger in the 1 class.
+-   Spread: There are 2600 values in the 0 class and 3400 in the 1 class.
+-   Outliers: N/A
+
+Acousticness (Figure 5)
+
+-   Shape: All classes are unimodal and heavily right-skewed.
+-   Location: Peaks on edm and rock classes are much larger than other classes. The mean and median are located at 0.182 and 0.0856 respectively.
+-   Spread: Spread is very wide for pop, r&b, and rock classes, ranging from 0 to 0.95. Spread for edm, latin and rap classes are narrower from 0 to 0.5 Range is from 0 to 0.992. IQR is from 0 to 0.269.
+-   Outliers: Outliers appear to be present in all classes for the acousticness at the higher ranges.
+
+Instrumentalness (Figure 6)
+
+-   Shape: All classes share the same shape and are unimodal and heavily right-skewed.
+-   Location: Peaks for all classes are located at the 0 value. The mean and median are located at 0.0831 and 0.0000164 respectively.
+-   Spread: Spread is very narrow for all classes with little distribution. The range is from 0 to 0.994. IQR is from 0 to 0.00445.
+-   Outliers: There appear to be outliers in all classes except for latin at the higher ranges.
+
+Liveness (Figure 7)
+
+-   Shape: All classes share a similar shape and are unimodal and right-skewed.
+-   Location: The location of all peaks located at 0.1. The mean and median are located at 0.191 and 0.126 respectively.
+-   Spread: The majority of data is spread from the 0 to 0.375 range for all classes. The range is from 0 to 0.988. IQR is from 0.0929 to 0.244.
+-   Outliers: There appear to be outliers in all classes at the higher ranges.
+
+Valence (Figure 8)
+
+-   Shape: Shape is varied between classes. Edm is multimodal with a right skew. Latin is multimodal with a left skew. The remaining classes are multimodal with a more even and normal distribution.
+-   Location: As all classes are multimodal they have multiple peaks spread across their distributions. The r&b and rap share the most similar distribution and have similar peaks. The mean and median are located at 0.507 and 0.508 respectively.
+-   Spread: Spread is wide for all classes ranging from 0 to 1. The range is from 0 to 0.978. IQR is from 0.327 to 0.687.
+-   Outliers: There only appears to be one outlier in the latin class at the lower range.
+
+Duration_ms (Figure 9)
+
+-   Shape: All classes share a similar shape and are unimodal. Edm, r&b and rock have a slight right skew. Latin, pop and rap have a slightly more normal distribution.
+-   Location: All classes share similar peaks in the 200000ms to 220000ms range. The mean and median are located at 224325 and 215046 respectively.
+-   Spread: Range is from 4000ms to 516769ms. IQR is from 187290ms to 251442ms.
+-   Outliers: there do appear to be some outliers in the edm, pop, r&b and rock classes located at the higher ranges, except for rock, which has some in the lower range.
+
+Track_popularity (Figure 10)
+
+-   Shape: All classes are multimodal with a wide distribution and many peaks.
+-   Location: All classes have a similar peak at 0. The main location of the remaining data for edm is lower than the remaining classes. The mean and median are located at 43.3 and 46.0 respectively.
+-   Spread: Range is from 0 to 98. IQR is from 26 to 63.
+-   Outliers: There do not appear to be any obvious outliers in the data.
+
+Danceability (Figure 11)
+
+-   Shape: The shape for all classes is unimodal. The edm, pop and rock classes are normally distributed while the latin, r&b and rap classes have a left-skew.
+-   Location: Mean and median are located at 0.652 and 0.669 respectively.
+-   Spread: Range is from 0 to 0.979. IQR is from 0.555 to 0.76.
+-   Outliers: There are some outliers present in all classes except for latin. The outliers are present at the lower stages for all the remaining variables. There are outliers present at the higher range for the rock class.
+
+Speechiness (Figure 12)
+
+-   Shape: All classes share a similar shape being unimodal with a high right skew.
+-   Location: All classes share similar peaks from 0 to 0.1, however, the magnitude of peaks is greater for the rock and pop classes. The mean and median are located at 0.1065 and 0.0635 respectively.
+-   Spread: The spread is similar for all classes ranging from 0 to 0.3. The rap class is more evenly spread out than the other classes. The range is from 0 to 0.918. IQR is from 0.0407 to 0.130.
+-   Outliers: There only appear to be outliers present in the rock class at the higher ranges.
+
+Year/Month/Day (Figure 13-15)
+
+-   Shape: The shape of the year data is unimodal with a heavy left-skew.
+-   Location: The location with the highest peak in the year data is located around 2018 for all classes. In the monthly data, the highest peak is in month 1. For the day data, the peak is on day 6.
+-   Spread: The spread of data is quite varied for the year data. Edm and latin have a narrow spread, pop, r&b and rap have a moderate spread and rock has a wide spread. For the month and day data, the distribution is quite similar between classes with minor differences.
+-   Outliers: There do appear to be some outliers in the year data for the pop and rock classes.
+
+Key observations:
+
+The loudness, instrumentalness, liveness, mode, month and day variables showed little variance between classes.
+This was important as the type of predictive models that would be generated were classification models.
+The little variance between classes for variables could result in false positives or false negatives in the prediction.
+In the tuning and fitting stages of the project, these variables could be dropped to test if prediction accuracy increases.
+
+### Founder Questions:
+
+Does the popularity of songs differ between genres?
+(Appendix A: Figure 10, 16)
+
+To answer this question the histogram, boxplot and summary statistics of each genre class were analysed.
+The popularity of songs did appear to differ between genres.
+The genre classes with the highest mean and median track popularity were latin and pop with 47.74 and 51, and 48.49 and 54 respectively.
+The genres with the next highest means and medians were the r&b, rap and rock classes with 42.34 and 45, 43.44 and 48.
+and 42.01 and 45 respectively.
+The class with the lowest mean and median was edm with 35.76 and 37.
+The reason for the gap between the mean and median for all classes could be explained by analysing the histogram which showed a large peak at the 0 popularity value for all classes.
+The range for popularity was quite similar in all genres with a min of 0 for all classes and max in the high 90 ranges for all classes except for the rock class which had a max popularity of 88.
+Although the IQR location varied between all the classes the emd, Latin, pop and rap all had a very similar range in the IQR ranging from 31-35 units of popularity.
+The r&b and rock classes had the widest IQR ranging from 40-41.5 units of popularity.
+There didn't appear to be any outliers for any of the classes.
+Based on this analysis it could be concluded that edm was the least popular genre.
+Latin and pop were on average the most popular genres with r&b, rap and rock close behind.
+Although r&b and rock were popular genres, they had the widest variance in the ranges of popularity.
+
+Is there a difference in speechiness for each genre?
+(Appendix A: Figure 12, 17)
+
+To answer this question the histogram, boxplot and summary statistics of each genre class were analysed.
+The speechiness of songs did appear to differ between genres.
+The genre class with the highest mean and median by a significant amount was the rap genre with 0.193 and 0.168.
+The mean and median were very similar for the edm, latin, pop and r&b classes with the mean value ranging from 0.08 to 0.12 and the median ranging from 0.05 to 0.07.
+Rock had the lowest mean and median of 0.0596 and 0.0422.
+The range differed significantly between classes with the r&b class having the highest max value of 0.918 and pop having the lowest max of 0.437.
+The min value was very similar across all values situated in the 0.020 to 0.025 range, except for rock which had a min value of 0.
+The class with the widest IQR was the rap class with an IQR of 0.0738-0.292 which was 0.218 units.
+The IQR of the latin and r&b classes were the next largest IQRs ranging from 0.0838 and 0.118 respectively.
+The IQR then decreased significantly for the edm, pop and rock classes with IQRs ranging 0.0615, 0.0460 and 0.03187 respectively.
+The larger IQR of the rap class can be seen on the histogram where the values were more spread out and the peak was significantly smaller than in the other classes.
+There did appear to be many outliers present on the boxplot.
+Edm, latin, pop, r&b, and rock classes all appeared to have a significant amount of outliers present at the ranges between approximately 0.2-0.5.
+There are only a few outliers present in the rap class all above the 0.65 level.
+The r&b's max value of 0.918 did appear to be a significant outlier for the class.
+Based on this analysis it can be concluded that there was a significant difference in speechiness between genres.
+Although rap had the highest speechiness on average, followed by r&b and latin, these genres also contained the most variance in speechiness between songs.
+Edm, pop and rock genres contained the least speechiness and little variance between songs.
+
+How does popularity change over time?
+(Appendix A: Figures 18-19)
+
+To answer this question two plots were generated.
+The mean track_popularity had been generated for each year and had been plotted on a graph with the linear model for the mean track_popularity.
+In Figure 18 this was for all the data and in Figure 19 this had been faceted by genre.
+Figures 18 and 19 indicated song popularity was decreasing over time for all genres except for the latin genre as its slope appeared to be 0.
+Although the song's popularity was generally decreasing, the linear model line displayed may not have been as accurate.
+As can be seen between approximately 2010 and 2020, the popularity of songs did appear to be increasing, especially in the edm, latin, r&b and rap genres.
+Although the long-term trends indicated that popularity was decreasing, a short-term perspective could show that it was actually increasing.
+
+The linear models for popularity are listed below:
+
+-   All genres track popularity = 821.498 - 0.390 x (year)
+-   Pop track popularity = 384.029 - 0.170 x (year)
+-   Rock track popularity = 749.896 - 0.376 x (year)
+-   R&btrack popularity = 638.332 - 0.300 x (year)
+-   Rap track popularity = 1119.74 - 0.540 x (year)
+-   Latin track popularity = -69.507 + 0.0554 x (year)
+-   Edm track popularity = 1424.993 - 0.692 x (year)
+
+As can be seen, the track popularity was decreasing for all the data and for all the genre classes except for latin which was slightly increasing.
+Based on this analysis it can be concluded that although current long-term linear models were indicating that track popularity was decreasing over time, there was evidence to support that the track popularity for the edm, latin, r&b and rap genres had been increasing over the last 10 years.
+Further research may be required to confirm this.
+
+### Tune and Fit Models
+
+Before the models could be tuned and fitted, the data was split into a 75% training and 25% testing split.
+Following this, the data was processed to normalize the numeric data, and remove highly correlated variables and variables that had zero variance.
+In addition to this, a 10-fold cross-validation set was generated from the testing data, stratified by genre.
+
+The first model to be generated was the random forest model.
+Before the model could be tuned, the feature's importance needed to be determined.
+As determined in the EDA, some variables contained little variance between classes and because of this they may not have been as important when used to predict a song's genre.
+Testing the random forest model by removing some of the less important variables could result in a more accurate model.
+Appendix B Figure 20 shows the importance of features in a random forest model.
+As can be seen, year, danceability, tempo, energy, and speechiness were the most important features in predicting genre while mode, liveness, month, key, and day were the least.
+To determine the set of variables that would produce the best results, the least important variables were removed until the estimated AUC failed to increase.
+The estimated AUC was derived from resamples of fitting the model to the cross-validation set.
+The estimated AUC result was 0.8450 for the un-tuned random forest with all variables.
+After testing, removing mode, liveness, month, key and day resulted in a slightly better estimated AUC of 0.8468.
+After testing, the reduced data set was kept for the LDA and KNN models as these models produced a slightly higher AUC.
+
+Following this, the random forest was generated and its parameters tuned.
+As the number of trees parameter had already been set by the founders at 100, it did not require tuning.
+The parameters dictating the number of predictors that are randomly sampled, and the number of data points in a node that are required for the node to be split were tuned.
+As these parameters had to be tuned to 5 levels there would be a total of 25 different combinations of the levels of the parameters that were tested.
+To evaluate what combination of parameters would be the best, the estimated AUC was used.
+After tuning, the random forest model was finalized with the tuned parameters and fitted to the testing data.
+The model was then used to predict the training data.
+To measure the performance the categorical metrics and actual AUC were generated from these predictions.
+
+The LDA model did not require tuning and was generated by fitting the model to the training data and used to predict the testing data.
+The model does not require tuning as it does its dimensionality reduction and setting up dummy variables as part of its processes.
+The only requirement for the LDA model to run is that the numeric data was normalised with a mean of 0 and standard deviation of 1, which the training data had already been preprocessed for.
+To measure the performance the categorical metrics and actual AUC were generated from the predictions.
+
+The final KNN model was generated and its parameters were tuned.
+For the KNN model, the only parameter that needed to be tuned was the number of neighbours that were used to calculate the data points class.
+The founders had already set the range of neighbours to be from 1 to 100 with 20 levels.
+This meant that the number of neighbours tested increased by approximately 5 at each level.
+To evaluate which level would be the best, the estimated AUC was used.
+This tuning determined the optimal level of neighbours to be 100.
+After this, the model was then finalized with the best parameter and fitted with the training data.
+The model was then used to predict the testing data.
+To measure the performance the categorical metrics and actual AUC were generated from these predictions.
+
+## Discussion
+
+The Random forest model produced a sensitivity of 55.53%, a specificity of 91.11%, and an AUC of 85.02%.
+The LDA model produced a sensitivity of 47.67%, a specificity of 89.53%, and an AUC of 80.97%.
+The KNN model produced a sensitivity of 49.13%, a specificity of 89.83%, and an AUC of 80.77%.
+(Appendix B - Table 1)
+
+From these results, it can be seen that the random forest model has the most predictive power when predicting genre out of all the models.
+The sensitivity of the random forest model indicates that the model predicted 55.53% of the positive predictions were true positives.
+When analysing the individual sensitivity statistics by class (Appendix B - Table 2), it can be seen the model received moderately high values for the rock, edm and rap classes, with the rock class receiving the highest sensitivity of 78.00%.
+However, the model also received poor results for the latin, pop and r&b classes, with pop receiving the lowest sensitivity of 34.80%.
+The specificity is very high indicating the model predicted true negatives 91.11% of the time.
+Similarly to the specificity, the class with the highest specificity was rock and the class with the lowest specificity was the pop class.
+The AUC of the model was very high and indicated that the models would be able to correctly classify a prediction as true positive or true negative 85.02% of the time.
+
+The KNN model was the second best performing model with a sensitivity and specificity indicating that the model was able to correctly predict a true positive and true negative 49.87% and 89.97% of the time.
+When analysing the individual sensitivity and specificity statists by class, it can be seen that the best performing class was the edm class with a sensitivity of 66.00% and a specificity of 93.20%.
+The worst performing class was the pop class with a sensitivity of 33.60% and specificity of 86.72%.
+The AUC for the KNN model is high indicating that the model would be able to differentiate between classes and correctly classify a prediction as true positive or true negative 81.48% of the time.
+
+The LDA was the worst performing model with a sensitivity and specificity indicating that the model was able to correctly predict a true positive and true negative of 46.47% and 89.97% of the time.
+When analysing the individual sensitivity and specificity statistics by class, it can be seen that the best performing class was the rock class with a sensitivity 56.00% and specificity of 91.20%.
+The worst performing class was the r&b class with a sensitivity of 35.60% and specificity of 87.12%.
+Although the LDA model had the worst results for sensitivity and specificity the model had the highest consistency across the classes with the range of its results spanning 0.204 compared to the 0.432 of the random forest and 0.3294 of the KNN.
+The AUC for the LDA model is high indicating that the model would be able to differentiate between classes and correctly classify a prediction as true positive or true negative 80.87% of the time.
+
+Although the results could be seen as low across the models, as there are 6 classes, if the models were truly random in their predictions the sensitivity and specificity would have been much lower.
+If the models were random the sensitivity and specificity would have been 0.167 and 0.833 as 1/6 of the positive predictions would have been true positives and 5/6 of the negative predictions would have been true negatives.
+These values served as the benchmark for what the performance of the models should have been measured against.
+As all the model's results exceeded these benchmarks for all classes, they can be said to have had some level of predictive power.
+This is supported by the AUC for all three models.
+Even though the sensitivity was low, the AUC was still quite high for all models.
+If the models were random then the AUC would have been 0.5.
+Although the predictions are not as bad as could at first be expected, the level is still lower than what could be considered optimal.
+The low sensitivity across the three models could indicate that further feature tuning or model tuning could be required to receive a more accurate result.
+The low sensitivity scores for the latin, pop and r&b classes across all three models indicated that there may not be enough variance in the data for these classes for the models to differentiate them from other classes.
+This can be supported when looking at the confusion matrix for each model.
+The confusion matrices indicated that all the models had difficulty differentiating the latin, pop, and r&b classes from each other.
+
+## Conclusion
+
+The purpose of this project was to create a predictive model that Spotify could use to predict a song's genre.
+The data used to create the predictive model originally consisted of 16 predictive variables which consisted of the characteristics of a song.
+This number was brought down to 11 predictive variables after removing the variables that were lest important in predicting the genre of a song.
+There were several steps involved in this project which included data importing and cleaning, exploratory data analysis, split and preprocessing data, model tuning and fitting, and lastly model evaluation.
+During this project, the founders also requested answers to several questions regarding some of the characteristics of the data.
+The answers to these questions are:
+
+-   The most important factors when predicting a song's genre were the year that the song was released, the danceability, the tempo, the energy and the speechiness of a song, in that order.
+-   The popularity of songs did differ between genres with the pop and latin genres having, on average, the most popular song, and the edm having, on average, the least popular songs.
+-   There was a speechiness difference between genres with the rap genre having by far the most speechines out of all the genres. The genres with the least level of speechiness were the rock, pop and edm genres.
+-   The popularity of genres had changed over time. Over the long term, there had been a general downward trend in the popularity of songs. However, from 2010 to 2020 there was a noticeable upward trend in the popularity of nearly all music genres.
+
+The results of the predictive models indicated that the random forest model had the greatest predictive power.
+The results showed that the random forest was able to correctly classify 55.53% of its positive predictions as true positives and that it would be able to correctly classify 91.11% of its negative predictions as true negatives.
+The model was also able to generate an AUC score of 85.02% which indicated that it could differentiate between the classes with 85.02% certainty.
+The linear discriminant model and k-nearest neighbour models scored slightly lower, with sensitivities and specificities of 46.47% and 89.29% for the LDA and 49.87% and 89.97% for the KNN model.
+The AUC scores for these models are 80.87% and 81.48% respectively.
+Analysing the confusion matrix, and the sensitivity and specificity scores for the individual classes showed that there was a lot of variance between the classes.
+The models were all able to correctly predict the edm, rap and rock classes more often than the latin, pop and r&b classes.
+This indicated that there could be too little variance in these classes in the original data for the models to differentiate between the classes.
+Future work to fix this could be to subject the data to additional feature engineering as this could allow for more variance to be uncovered which would allow the models to better differentiate the classes from each other.
+Based on these final results it is recommended that Spotify use the random forest model to predict the genre of a song over the LDA and KNN models.
+
+## Appendix A - Import/Cleaning/EDA
+
+### Data Importing
+
+```{r}
+library(tidyverse)
+library(lubridate, warn.conflicts = FALSE)
+library(stringr)
+library(tidyr)
+
+spotify_songs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-21/spotify_songs.csv')
+
+as_tibble(spotify_songs)
+
+head(spotify_songs)
+
+songs <- spotify_songs[, c('energy','key','loudness','mode','acousticness','instrumentalness',
+  'liveness', 'valence','duration_ms','track_popularity', 'track_album_release_date',
+  'playlist_genre', 'danceability', 'speechiness', 'tempo')]
+
+head(songs)
+
+```
+
+### Data Cleaning
+
+```{r}
+pacman::p_load(skimr)
+skim(songs)
+```
+
+```{r}
+# Getting Date data
+pacman::p_load(recipes)
+pacman::p_load(inspectdf)
+pacman::p_load(dplyr)
+
+songs$date <- as_date(songs$track_album_release_date)
+inspect_na(songs)
+songs <- songs %>% drop_na() #Drop na instead of replacing as it is not a significant amount of data and we are downsampling
+
+songs$year <- year(songs$date)
+songs$month <- month(songs$date)
+songs$day <- wday(songs$date)
+songs <- dplyr::select(songs, -date, -track_album_release_date)
+head(songs)
+
+```
+
+```{r}
+# Replacing Loudness incorrect values with median
+songs %>% count(loudness > 0)
+songs %>% count(loudness == median(songs$loudness))
+songs$loudness <- ifelse(songs$loudness > 0, median(songs$loudness), songs$loudness)
+songs$loudness %>% median()
+songs %>% count(loudness == median(songs$loudness))
+
+```
+
+```{r}
+# Downsampling data to 1000 of each Genre
+pacman::p_load(rsample)
+pacman::p_load(themis)
+set.seed(1805361)
+
+songs %>% count(playlist_genre)
+
+downsample_recipe <- recipe(playlist_genre ~., data = songs) %>%
+  themis::step_downsample(playlist_genre, under_ratio = 0.2413)
+
+downsample_prepped <- prep(downsample_recipe)
+songs <- juice(downsample_prepped)
+summary(songs$playlist_genre)
+```
+
+```{r}
+# Recoding factors - Other factors will be recoded below for graphing reasons
+songs$playlist_genre <- as_factor(songs$playlist_genre)
+
+```
+
+### Exploratory Data Analysis
+
+```{r}
+# Plots
+ggplot(data = songs, aes(x= energy, fill = playlist_genre)) +
+  geom_histogram() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 1 - Energy Histogram") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$energy)
+
+ggplot(data = songs, aes(x = key, fill = playlist_genre)) +
+  geom_bar() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 2 - Key Bar Chart") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$key)
+
+ggplot(data = songs, aes(x = loudness, fill = playlist_genre)) +
+  geom_histogram() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 3 - Loudness Histogram") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$loudness)
+
+ggplot(data = songs, aes(x = mode, fill = playlist_genre)) +
+  geom_bar() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 4 - Mode Bar Chart") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$mode)
+
+ggplot(data = songs, aes(x = acousticness, fill = playlist_genre)) +
+  geom_histogram() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 5 - Acousticness Histogram") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$acousticness)
+
+ggplot(data = songs, aes(x = instrumentalness, fill = playlist_genre)) +
+  geom_histogram() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 6 - Instrumentalness Histogram") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$instrumentalness)
+
+ggplot(data = songs, aes(x = liveness, fill = playlist_genre)) +
+  geom_histogram() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 7 - Liveness Histogram") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$liveness)
+
+ggplot(data = songs, aes(x = valence, fill = playlist_genre)) +
+  geom_histogram() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 8 - Valence Histogram") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$valence)
+
+ggplot(data = songs, aes(x = duration_ms, fill = playlist_genre)) +
+  geom_histogram() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 9 - Duration Histogram") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$duration_ms)
+
+ggplot(data = songs, aes(x = track_popularity, fill = playlist_genre)) +
+  geom_histogram() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 10 - Track Popularity Histogram") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$track_popularity)
+
+ggplot(data = songs, aes(x = danceability, fill = playlist_genre)) +
+  geom_histogram() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 11 - Danceability Histogram") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$danceability)
+
+ggplot(data = songs, aes(x = speechiness, fill = playlist_genre)) +
+  geom_histogram() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 12 - Speechiness Histogram") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$speechiness)
+
+ggplot(data = songs, aes(x = year, fill = playlist_genre)) +
+  geom_bar() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 13 - Year Bar Chart") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$year)
+
+ggplot(data = songs, aes(x = month, fill = playlist_genre)) +
+  geom_bar() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 14 - Month Bar Chart") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$month)
+
+ggplot(data = songs, aes(x = day, fill = playlist_genre)) +
+  geom_bar() + facet_grid(playlist_genre ~.) +
+  labs(caption = "Figure 15 - Day Bar Chart") +
+  theme(plot.caption = element_text(hjust = 0.5))
+summary(songs$day)
+
+```
+
+### Founder Questions
+
+```{r}
+# Does the popularity of songs differ between genres
+ggplot(data = songs, aes(x = playlist_genre, y = track_popularity, fill = playlist_genre)) +
+  geom_boxplot() + labs(caption = "Figure 16 - Track Popularity by Playlist Genre Box-Plot") +
+  theme(plot.caption = element_text(hjust = 0.5))
+print("POP")
+songs %>% filter(playlist_genre == "pop") %>%
+  dplyr::select(track_popularity) %>% summary()
+print("RAP")
+songs %>% filter(playlist_genre == "rap") %>%
+  dplyr::select(track_popularity) %>% summary()
+print("ROCK")
+songs %>% filter(playlist_genre == "rock") %>%
+  dplyr::select(track_popularity) %>% summary()
+print("LATIN")
+songs %>% filter(playlist_genre == "latin") %>%
+  dplyr::select(track_popularity) %>% summary()
+print("R&B")
+songs %>% filter(playlist_genre == "r&b") %>%
+  dplyr::select(track_popularity) %>% summary()
+print("EDM")
+songs %>% filter(playlist_genre == "edm") %>%
+  dplyr::select(track_popularity) %>% summary()
+
+```
+
+```{r}
+# Is there a difference in speechiness for each genre
+ggplot(data = songs, aes(x = playlist_genre, y = speechiness, fill = playlist_genre)) +
+  geom_boxplot() + labs(caption = "Figure 17 - Speechiness by Playlist Genre Boxplot") +
+  theme(plot.caption = element_text(hjust = 0.5))
+print("POP")
+songs %>% filter(playlist_genre == "pop") %>%
+  dplyr::select(speechiness) %>% summary()
+print("RAP")
+songs %>% filter(playlist_genre == "rap") %>%
+  dplyr::select(speechiness) %>% summary()
+print("ROCK")
+songs %>% filter(playlist_genre == "rock") %>%
+  dplyr::select(speechiness) %>% summary()
+print("LATIN")
+songs %>% filter(playlist_genre == "latin") %>%
+  dplyr::select(speechiness) %>% summary()
+print("R&B")
+songs %>% filter(playlist_genre == "r&b") %>%
+  dplyr::select(speechiness) %>% summary()
+print("EDM")
+songs %>% filter(playlist_genre == "edm") %>%
+  dplyr::select(speechiness) %>% summary()
+
+
+```
+
+```{r}
+# How does track popularity change over time
+pop_songs <- songs %>% dplyr::select(track_popularity, year) %>% 
+  group_by(year) %>% 
+  summarise(track_popularity = mean(track_popularity))
+
+pop_songs %>% ggplot(aes(x = year, y = track_popularity)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(caption = "Figure 18 - Track Popularity by Year Scatter Plot with Linear Model")
+
+summary(lm(data = pop_songs, track_popularity ~ year))
+
+pop_facet <- songs %>% dplyr::select(track_popularity, year, playlist_genre) %>%
+  group_by(year, playlist_genre) %>% 
+  summarise(track_popularity = mean(track_popularity))
+
+pop_facet %>% 
+  ggplot(aes(x = year, y = track_popularity)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(playlist_genre ~., ncol = 2) +
+  labs(caption = "Figure 19 - Track Popularity by Year by Class Scatter Plot with Linear Model")
+
+pop_facet_pop <- pop_facet %>% filter(playlist_genre == "pop")
+summary(lm(data = pop_facet_pop, track_popularity ~ year))
+
+pop_facet_rock <- pop_facet %>% filter(playlist_genre == "rock")
+summary(lm(data = pop_facet_rock, track_popularity ~ year))
+
+pop_facet_rb <- pop_facet %>% filter(playlist_genre == "r&b")
+summary(lm(data = pop_facet_rb, track_popularity ~ year))
+
+pop_facet_rap <- pop_facet %>% filter(playlist_genre == "rap")
+summary(lm(data = pop_facet_rap, track_popularity ~ year))
+
+pop_facet_lat <- pop_facet %>% filter(playlist_genre == "latin")
+summary(lm(data = pop_facet_lat, track_popularity ~ year))
+
+pop_facet_edm <- pop_facet %>% filter(playlist_genre == "edm")
+summary(lm(data = pop_facet_edm, track_popularity ~ year))
+
+```
+
+```{r}
+# converting variables to factors
+songs$playlist_genre <- as_factor(songs$playlist_genre)
+songs$mode <- as_factor(songs$mode)
+songs$year <- as_factor(songs$year)
+songs$month <- as_factor(songs$month)
+songs$day <- as_factor(songs$day)
+songs$key <- as_factor(songs$key)
+
+```
+
+## Appendix B - Split/Preprocessing/Tune and Fit/Results
+
+### Split and Preprocessing
+
+```{r}
+# Train Test split
+set.seed(1805361)
+songs_split <- initial_split(songs, strata = playlist_genre)
+songs_split
+songs_train <- training(songs_split)
+songs_test <- testing(songs_split)
+head(songs_train, 6)
+head(songs_test, 6)
+```
+
+```{r}
+#Preprocessing
+colnames(songs)
+
+songs_recipe <- recipe(playlist_genre ~ ., data = songs_train) %>%
+  step_normalize(all_numeric()) %>%
+  step_zv(all_predictors()) %>%
+  step_corr(all_numeric())
+
+songs_recipe
+
+songs_prepped <- prep(songs_recipe)
+songs_juiced <- juice(songs_prepped)
+songs_baked <- bake(songs_prepped, songs_test)
+
+head(songs_juiced)
+head(songs_baked)
+
+summary(songs_juiced)
+```
+
+```{r}
+# 10 fold CV set
+pacman::p_load(parsnip)
+pacman::p_load(dials)
+
+set.seed(1805361)
+songs_cv <- vfold_cv(songs_juiced, v = 10, strata = playlist_genre)
+```
+
+### Tune and Fit Models
+
+```{r}
+# Finding Feature Importance to reduce the number of features
+pacman::p_load(ranger)
+pacman::p_load(vip)
+pacman::p_load(parsnip)
+pacman::p_load(tune)
+
+rf_spec <- rand_forest(mode = "classification", trees = 100) %>%
+  set_engine("ranger", importance = "permutation")
+set.seed(1805361)
+songs_rf <- rf_spec %>% fit(playlist_genre ~ ., data = songs_juiced)
+songs_rf %>% vip(num_features = 16) + theme_minimal()  +
+  labs(caption = "Figure 20 - Variables by Importance")
+#Base
+set.seed(1805361)
+rf_resamples <- fit_resamples(object = rf_spec,
+  preprocessor = recipe(playlist_genre ~., data = songs_juiced),
+  resamples = songs_cv)
+collect_metrics(rf_resamples)
+#1
+songs_juiced <- dplyr::select(songs_juiced, -mode)
+set.seed(1805361)
+rf_resamples <- fit_resamples(object = rf_spec,
+  preprocessor = recipe(playlist_genre ~., data = songs_juiced),
+  resamples = songs_cv)
+collect_metrics(rf_resamples)
+#2
+songs_juiced <- dplyr::select(songs_juiced, -liveness)
+set.seed(1805361)
+rf_resamples <- fit_resamples(object = rf_spec,
+  preprocessor = recipe(playlist_genre ~., data = songs_juiced),
+  resamples = songs_cv)
+collect_metrics(rf_resamples)
+#3
+songs_juiced <- dplyr::select(songs_juiced, -month)
+set.seed(1805361)
+rf_resamples <- fit_resamples(object = rf_spec,
+  preprocessor = recipe(playlist_genre ~., data = songs_juiced),
+  resamples = songs_cv)
+collect_metrics(rf_resamples)
+#4
+songs_juiced <- dplyr::select(songs_juiced, -key)
+set.seed(1805361)
+rf_resamples <- fit_resamples(object = rf_spec,
+  preprocessor = recipe(playlist_genre ~., data = songs_juiced),
+  resamples = songs_cv)
+collect_metrics(rf_resamples)
+#5
+songs_juiced <- dplyr::select(songs_juiced, -day)
+set.seed(1805361)
+rf_resamples <- fit_resamples(object = rf_spec,
+  preprocessor = recipe(playlist_genre ~., data = songs_juiced),
+  resamples = songs_cv)
+collect_metrics(rf_resamples)
+
+songs_baked <- dplyr::select(songs_baked, -mode, -liveness, -month, -key, -day)
+
+```
+
+```{r}
+# RF with Tuned features
+library(pROC)
+pacman::p_load(yardstick)
+
+rf_spec_tune <- rand_forest(mode = "classification",
+                            trees = 100,
+                            mtry = tune(),
+                            min_n = tune()) %>%
+  set_engine("ranger", importance = "permutation")
+rf_spec_tune
+
+rand_spec_grid <- grid_regular(
+  finalize(mtry(), songs_juiced %>% dplyr::select(-playlist_genre)),
+           min_n(),
+           levels = 5)
+rand_spec_grid
+
+set.seed(1805361)
+
+pacman::p_load(tune)
+rf_tuned <- tune_grid(object = rf_spec_tune,
+                      preprocessor = recipe(playlist_genre ~., data = songs_juiced),
+                      resamples = songs_cv,
+                      grid = rand_spec_grid)
+
+best_auc <- select_best(rf_tuned, "roc_auc")
+final_rf <- finalize_model(rf_spec_tune, best_auc)
+songs_rf <- final_rf %>% fit(playlist_genre ~., data = songs_juiced)
+songs_rf
+
+set.seed(1805361)
+rf_df <- predict(songs_rf, new_data = songs_baked, type = "prob")
+set.seed(1805361)
+songs_rf_pred <- predict(songs_rf, new_data = songs_baked, type = "class") %>% 
+  bind_cols(songs_baked %>% dplyr::select(playlist_genre)) %>%
+  bind_cols(rf_df)
+
+categorical_metrics <- metric_set(sens, spec)
+rf_cat_met <- songs_rf_pred %>%
+  categorical_metrics(truth = playlist_genre, estimate = .pred_class)
+rf_cat_met_class <- songs_rf_pred %>% group_by(playlist_genre) %>%
+  categorical_metrics(truth = playlist_genre, estimate = .pred_class)
+rf_cat_met
+rf_cat_met_class
+
+rf_real_values <- matrix(songs_rf_pred$playlist_genre)
+rf_preds <- as.matrix(rf_df)
+colnames(rf_preds) <- c("edm", "latin", "pop", "r&b", "rap","rock")
+rf_auc <- multiclass.roc(rf_real_values, rf_preds)
+rf_auc
+
+```
+
+```{r}
+# LDA
+
+library(discrim)
+
+songs_lda <- discrim_linear(mode = "classification") %>% set_engine("MASS")
+
+set.seed(1805361)
+songs_lda <- songs_lda %>% fit(playlist_genre ~., data = songs_juiced)
+songs_lda
+
+set.seed(1805361)
+lda_df <- predict(songs_lda, new_data = songs_baked, type = "prob")
+set.seed(1805361)
+songs_lda_pred <- predict(songs_lda, new_data = songs_baked, type = "class") %>%
+  bind_cols(songs_baked %>% dplyr::select(playlist_genre)) %>%
+  bind_cols(lda_df)
+
+lda_cat_met <- songs_lda_pred %>% categorical_metrics(truth = playlist_genre, estimate = .pred_class)
+lda_cat_met_class <- songs_lda_pred %>% group_by(playlist_genre) %>%
+  categorical_metrics(truth = playlist_genre, estimate = .pred_class)
+lda_cat_met
+lda_cat_met_class
+
+lda_real_values <- matrix(songs_lda_pred$playlist_genre)
+lda_preds <- as.matrix(lda_df)
+colnames(lda_preds) <- c("edm", "latin", "pop", "r&b", "rap","rock")
+lda_auc <- multiclass.roc(lda_real_values, lda_preds)
+lda_auc
+```
+
+```{r}
+# KKNN range 1-100, 20 levels
+pacman::p_load(tune)
+pacman::p_load(kknn)
+
+songs_nn <- nearest_neighbor(mode = "classification",neighbors = tune()) %>% set_engine("kknn")
+
+neighbors_grid <- grid_regular(neighbors(range(1, 100)), levels = 20)
+neighbors_grid
+
+set.seed(1805361)
+knn_tune <- tune_grid(object = songs_nn,
+                      preprocessor = recipe(playlist_genre ~., songs_juiced),
+                      resamples = songs_cv,
+                      grid = neighbors_grid)
+
+best_neighbors <- select_best(knn_tune, "roc_auc")
+
+final_knn <- finalize_model(songs_nn, best_neighbors)
+final_knn
+
+songs_knn <- final_knn %>% set_engine("kknn") %>%
+  fit(playlist_genre ~., songs_juiced)
+
+set.seed(1805361)
+knn_df <- predict(songs_knn, new_data = songs_baked, type = "prob")
+set.seed(1805361)
+songs_knn_pred <- predict(songs_knn, new_data = songs_baked, type = "class") %>%
+  bind_cols(dplyr::select(songs_baked, playlist_genre)) %>%
+  bind_cols(knn_df)
+
+knn_cat_met <- songs_knn_pred %>% categorical_metrics(truth = playlist_genre, estimate = .pred_class)
+knn_cat_met_class <- songs_knn_pred %>% group_by(playlist_genre) %>%
+  categorical_metrics(truth = playlist_genre, estimate = .pred_class)
+knn_cat_met
+knn_cat_met_class
+
+knn_real_values <- matrix(songs_knn_pred$playlist_genre)
+knn_preds <- as.matrix(knn_df)
+colnames(knn_preds) <- c("edm", "latin", "pop", "r&b", "rap","rock")
+knn_auc <- multiclass.roc(knn_real_values, knn_preds)
+knn_auc
+```
+
+### Final Results
+
+```{r}
+# Results
+results_table <- rf_cat_met %>% dplyr::select(.metric, .estimate) %>%
+  bind_cols(lda_cat_met %>% dplyr::select(.estimate)) %>%
+  bind_cols(knn_cat_met %>% dplyr::select(.estimate))
+
+colnames(results_table) <- c("Metric", "RF", "LDA", "KNN")
+results_table <- results_table %>% add_row(Metric = "AUC", `RF`= 0.8502,
+  LDA = 0.8087, KNN = 0.8148)
+results_table <- results_table %>% knitr::kable(digits = 4,
+  caption = "Table 1 - Model Sensitivity, Specificity and AUC")
+results_table
+
+results_table_class <- rf_cat_met_class %>% dplyr::select(playlist_genre, .metric, .estimate) %>%
+  bind_cols(lda_cat_met_class %>% dplyr::select(.estimate)) %>%
+  bind_cols(knn_cat_met_class %>% dplyr::select(.estimate))
+
+colnames(results_table_class) <- c("Genre", "Metric", "RF", "LDA", "KNN")
+results_table_class <- results_table_class %>% knitr::kable(digits = 4, caption = "Table 2 - Sensitivity and Specificity by class")
+results_table_class
+
+print("RF")
+songs_rf_pred %>% conf_mat(truth = playlist_genre, estimate = .pred_class)
+print("LDA")
+songs_lda_pred %>% conf_mat(truth = playlist_genre, estimate = .pred_class)
+print("KNN")
+songs_knn_pred %>% conf_mat(truth = playlist_genre, estimate = .pred_class)
+
+```
+
+## References
+
+1.  The Ultimate Guide to Random Forest Regression. Keboola. Available at: <https://www.keboola.com/blog/random-forest-regression> (Accessed: December 1, 2022).
+2.  Brownlee, J. (2020), Linear discriminant analysis for machine learning, MachineLearningMastery.com. Available at: <https://machinelearningmastery.com/linear-discriminant-analysis-for-machine-learning/> (Accessed: December 1, 2022).
+3.  K-Nearest Neighbor(KNN) algorithm for Machine Learning - Javatpoint (no date) www.javatpoint.com. Available at: <https://www.javatpoint.com/k-nearest-neighbor-algorithm-for-machine-learning> (Accessed: December 1, 2022).
